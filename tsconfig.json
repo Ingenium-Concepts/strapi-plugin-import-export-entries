@@ -1,4 +1,13 @@
 {
+  "exclude": [
+    "node_modules/",
+    "dist/",
+
+    // Do not include server files in the server compilation
+    "server/",
+    // Do not include test files
+    "**/*.test.ts"
+  ],
   "compilerOptions": {
     "target": "ES6",
     "module": "NodeNext",
@@ -11,6 +20,5 @@
     "outDir": "./"
   },
   "$schema": "https://json.schemastore.org/tsconfig",
-  "include": ["src/**/*"],
-  "exclude": ["node_modules"]
+  "include": ["src/**/*", "custom.d.ts"]
 }

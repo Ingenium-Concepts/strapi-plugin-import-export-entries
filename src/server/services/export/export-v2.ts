@@ -33,6 +33,11 @@ import {
 } from '../../utils/models';
 import converters from './converters-v2';
 
+import { Attribute as StrapiAttribute } from '@strapi/types';
+import { Common } from '@strapi/types';
+import { Component as StrapiComponent, ContentType as StrapiContentType } from '@strapi/types/dist/types/core/schemas';
+type AttrComponent = StrapiAttribute.Component<Common.UID.Component, boolean>;
+
 const dataFormats = {
   JSON: 'json',
 } as const;
@@ -118,7 +123,7 @@ async function findEntriesForHierarchy(
         const entryIdsToExported = fromPairs(allEntries.map((entry) => [entry.id, true]));
 
         for (const entry of entries) {
-          (entry.localizations || []).forEach((localization) => {
+          (entry.localizations || []).forEach((localization: any) => {
             if (localization.id && !entryIdsToExported[localization.id]) {
               allEntries.push(localization as any);
               entryIdsToExported[localization.id] = true;
@@ -305,9 +310,9 @@ async function findEntries(slug: string, deepness: number, { search, ids }: { se
       });
     }
 
-    const entries = await strapi.entityService.findMany(slug, queryBuilder.get());
+    const entries = await strapi.entityService.findMany(slug as Common.UID.ContentType, queryBuilder.get());
 
-    return entries;
+    return entries as Entry[];
   } catch (_) {
     return [];
   }
@@ -359,14 +364,14 @@ function getPopulateFromSchema(slug: string, deepness = 5): Populate | true | un
   }
 
   const populate: Record<string, any> = {};
-  const model = strapi.getModel(slug);
+  const model = strapi.getModel(slug as Common.UID.Schema);
   for (const [attributeName, attribute] of Object.entries(getModelPopulationAttributes(model))) {
     if (!attribute) {
       continue;
     }
 
     if (isComponentAttribute(attribute)) {
-      populate[attributeName] = getPopulateFromSchema(attribute.component, deepness - 1);
+      populate[attributeName] = getPopulateFromSchema((attribute as AttrComponent).component, deepness - 1);
     } else if (isDynamicZoneAttribute(attribute)) {
       const dynamicPopulate = attribute.components.reduce((zonePopulate, component) => {
         const compPopulate = getPopulateFromSchema(component, deepness - 1);
@@ -410,9 +415,9 @@ function buildSlugHierarchy(slug: SchemaUID, deepness = 5): Hierarchy {
     }
 
     if (isComponentAttribute(attribute)) {
-      hierarchy[attributeName] = buildSlugHierarchy(attribute.component, deepness - 1);
+      hierarchy[attributeName] = buildSlugHierarchy(attribute.component as SchemaUID, deepness - 1);
     } else if (isDynamicZoneAttribute(attribute)) {
-      hierarchy[attributeName] = Object.fromEntries(attribute.components.map((componentSlug) => [componentSlug, buildSlugHierarchy(componentSlug, deepness - 1)]));
+      hierarchy[attributeName] = Object.fromEntries(attribute.components.map((componentSlug) => [componentSlug, buildSlugHierarchy(componentSlug as SchemaUID, deepness - 1)]));
     } else if (isRelationAttribute(attribute)) {
       const relationHierarchy = buildSlugHierarchy(attribute.target, deepness - 1);
       if (relationHierarchy) {
@@ -427,7 +432,7 @@ function buildSlugHierarchy(slug: SchemaUID, deepness = 5): Hierarchy {
   return hierarchy;
 }
 
-function getModelPopulationAttributes(model: Schema) {
+function getModelPopulationAttributes(model: StrapiContentType | StrapiComponent) {
   if (model.uid === 'plugin::upload.file') {
     const { related, ...attributes } = model.attributes;
     return attributes;

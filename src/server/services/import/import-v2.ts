@@ -11,6 +11,9 @@ import { head, toPairs } from 'lodash';
 import { FileEntry, FileEntryDynamicZone, FileId } from './types';
 import { findOrImportFile } from './utils/file';
 
+import { Attribute } from '@strapi/types';
+import { Common } from '@strapi/types';
+type AttrComponent = Attribute.Component<Common.UID.Component, boolean>;
 type Import = {
   version: 2;
   data: ImportData;
@@ -57,7 +60,7 @@ const importDataV2 = async (
     user,
     idField,
   }: {
-    slug: SchemaUID;
+    slug: Common.UID.ContentType;
     /** User importing the data. */
     user: User;
     /** Field used as unique identifier. */
@@ -281,7 +284,7 @@ function removeComponents(schema: Schema, fileEntry: FileEntry) {
     }
 
     if (isComponentAttribute(attribute)) {
-      if (attribute.repeatable) {
+      if ((attribute as AttrComponent).repeatable) {
         store[attributeName] = [];
       } else {
         store[attributeName] = null;
@@ -305,12 +308,15 @@ function setComponents(
     if (attributeValue == null) {
       continue;
     } else if (isComponentAttribute(attribute)) {
-      if (attribute.repeatable) {
+      if ((attribute as AttrComponent).repeatable) {
         store[attributeName] = (attributeValue as (number | string)[]).map((componentFileId) =>
-          getComponentData(attribute.component, `${componentFileId}`, { fileIdToDbId, componentsDataStore }),
+          getComponentData((attribute as AttrComponent).component as Common.UID.ContentType, `${componentFileId}`, { fileIdToDbId, componentsDataStore }),
         );
       } else {
-        store[attributeName] = getComponentData(attribute.component, `${attributeValue as number | string}`, { fileIdToDbId, componentsDataStore });
+        store[attributeName] = getComponentData((attribute as AttrComponent).component as Common.UID.ContentType, `${attributeValue as number | string}`, {
+          fileIdToDbId,
+          componentsDataStore,
+        });
       }
     } else if (isDynamicZoneAttribute(attribute)) {
       store[attributeName] = (attributeValue as FileEntryDynamicZone[]).map(({ __component, id }) => getComponentData(__component, `${id}`, { fileIdToDbId, componentsDataStore }));
@@ -344,12 +350,15 @@ function getComponentData(
     }
 
     if (isComponentAttribute(attribute)) {
-      if (attribute.repeatable) {
+      if ((attribute as AttrComponent).repeatable) {
         store[attributeName] = (attributeValue as (number | string)[]).map((componentFileId) =>
-          getComponentData(attribute.component, `${componentFileId}`, { fileIdToDbId, componentsDataStore }),
+          getComponentData((attribute as AttrComponent).component as Common.UID.ContentType, `${componentFileId}`, { fileIdToDbId, componentsDataStore }),
         );
       } else {
-        store[attributeName] = getComponentData(attribute.component, `${attributeValue as number | string}`, { fileIdToDbId, componentsDataStore });
+        store[attributeName] = getComponentData((attribute as AttrComponent).component as Common.UID.ContentType, `${attributeValue as number | string}`, {
+          fileIdToDbId,
+          componentsDataStore,
+        });
       }
     } else if (isDynamicZoneAttribute(attribute)) {
       store[attributeName] = (attributeValue as FileEntryDynamicZone[]).map(({ __component, id }) => getComponentData(__component, `${id}`, { fileIdToDbId, componentsDataStore }));
@@ -379,7 +388,7 @@ function getComponentData(
 
 const updateOrCreateCollectionTypeEntry = async (
   user: User,
-  slug: SchemaUID,
+  slug: Common.UID.ContentType,
   fileId: FileId,
   fileEntry: FileEntry,
   { idField, importStage, fileIdToDbId }: { idField: string; importStage: ImportStage; fileIdToDbId: IdMapper },
@@ -419,8 +428,9 @@ const updateOrCreateCollectionTypeEntry = async (
         // If `dbEntry` has been found, `dbEntry` holds the data for the default locale and
         // the data for other locales in its `localizations` attribute.
         const localizedEntries = [dbEntry, ...(dbEntry?.localizations || [])];
-        dbEntryDefaultLocaleId = localizedEntries.find((e) => e.locale === defaultLocale)?.id || null;
-        (dbEntry as any) = localizedEntries.find((e) => e.locale === fileEntry.locale) || null;
+        // @vule: reopen it
+        // dbEntryDefaultLocaleId = localizedEntries.find((e) => e.locale === defaultLocale)?.id || null;
+        // (dbEntry as any) = localizedEntries.find((e) => e.locale === fileEntry.locale) || null;
       } else {
         // Otherwise try to find dbEntry for default locale through localized siblings.
         let idx = 0;
@@ -429,12 +439,12 @@ const updateOrCreateCollectionTypeEntry = async (
           const dbId = fileIdToDbId.getMapping(slug, fileLocalizationsIds[idx]);
           const localizedEntry: Entry = await strapi.db.query(slug).findOne({ where: { id: dbId }, populate: ['localizations'] });
           const localizedEntries = localizedEntry != null ? [localizedEntry, ...(localizedEntry?.localizations || [])] : [];
-          if (!dbEntryDefaultLocaleId) {
-            dbEntryDefaultLocaleId = localizedEntries.find((e) => e.locale === defaultLocale)?.id || null;
-          }
-          if (!dbEntry) {
-            (dbEntry as any) = localizedEntries.find((e) => e.locale === fileEntry.locale) || null;
-          }
+          // if (!dbEntryDefaultLocaleId) {
+          //   dbEntryDefaultLocaleId = localizedEntries.find((e) => e.locale === defaultLocale)?.id || null;
+          // }
+          // if (!dbEntry) {
+          //   (dbEntry as any) = localizedEntries.find((e) => e.locale === fileEntry.locale) || null;
+          // }
           idx += 1;
         }
       }
@@ -468,7 +478,7 @@ const updateOrCreateCollectionTypeEntry = async (
 
 const updateOrCreateSingleTypeEntry = async (
   user: User,
-  slug: SchemaUID,
+  slug: Common.UID.ContentType,
   fileId: FileId,
   fileEntry: FileEntry,
   { importStage, fileIdToDbId }: { importStage: ImportStage; fileIdToDbId: IdMapper },
@@ -504,7 +514,7 @@ const updateOrCreateSingleTypeEntry = async (
       if (!entryDefaultLocale) {
         return strapi.entityService.create(slug, { data: fileEntry });
       } else {
-        return strapi.entityService.update(slug, entryDefaultLocale.id, { data: fileEntry });
+        return strapi.entityService.update(slug as Common.UID.ContentType, entryDefaultLocale.id, { data: fileEntry });
       }
     } else {
       const entryLocale = await strapi.db.query(slug).findOne({ where: { locale: fileEntry.locale } });

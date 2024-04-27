@@ -1,5 +1,5 @@
 import { toArray } from '../../libs/arrays';
-import { Attribute, AttributeType, ComponentAttribute, DynamicZoneAttribute, Entry, MediaAttribute, RelationAttribute, Schema, SchemaUID } from '../types';
+import { Attribute, ComponentAttribute, DynamicZoneAttribute, Entry, MediaAttribute, RelationAttribute, Schema, SchemaUID } from '../types';
 
 export {
   getAllSlugs,
@@ -30,13 +30,13 @@ module.exports = {
 };
 
 function getAllSlugs({ includePluginsContentTypes = false }: { includePluginsContentTypes?: boolean } = {}): SchemaUID[] {
-  return (Array.from(strapi.db.metadata) as [SchemaUID][])
+  return (Array.from(strapi.db.metadata) as [SchemaUID, unknown][])
     .filter(([collectionName]) => collectionName.startsWith('api::') || (includePluginsContentTypes && collectionName.startsWith('plugin::')))
     .map(([collectionName]) => collectionName);
 }
 
 function getModel(slug: SchemaUID): Schema {
-  return strapi.getModel(slug);
+  return strapi.getModel(slug) as Schema;
 }
 
 function getModelFromSlugOrModel(modelOrSlug: SchemaUID | Schema): Schema {
@@ -57,11 +57,11 @@ function getModelAttributes(
     /**
      * Only attributes matching the type(s) will be kept.
      */
-    filterType?: AttributeType | AttributeType[];
+    filterType?: string | string[];
     /**
      * Remove attributes matching the specified type(s).
      */
-    filterOutType?: AttributeType | AttributeType[];
+    filterOutType?: string | string[];
     /**
      * Remove attributes matching the specified target(s).
      */
@@ -90,19 +90,19 @@ function getModelAttributes(
 }
 
 function isComponentAttribute(attribute: any): attribute is ComponentAttribute {
-  return (attribute as { type: AttributeType }).type === 'component';
+  return (attribute as { type: string }).type === 'component';
 }
 
 function isDynamicZoneAttribute(attribute: any): attribute is DynamicZoneAttribute {
-  return (attribute as { type: AttributeType }).type === 'dynamiczone';
+  return (attribute as { type: string }).type === 'dynamiczone';
 }
 
 function isMediaAttribute(attribute: any): attribute is MediaAttribute {
-  return (attribute as { type: AttributeType }).type === 'media';
+  return (attribute as { type: string }).type === 'media';
 }
 
 function isRelationAttribute(attribute: any): attribute is RelationAttribute {
-  return (attribute as { type: AttributeType }).type === 'relation';
+  return (attribute as { type: string }).type === 'relation';
 }
 
 function getEntryProp(entry: Entry, prop: string): any {

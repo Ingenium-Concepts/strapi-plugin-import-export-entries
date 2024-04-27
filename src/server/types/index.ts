@@ -1,17 +1,32 @@
+import { Utils } from '@strapi/types/dist/types';
+import { Attribute as AttributeType, Common as StrapiCommon } from '@strapi/types';
+
 import {
-  AttributeType,
-  ComponentSchema as StrapiComponentSchema,
-  SingleTypeSchema as StrapiSingleTypeSchema,
-  CollectionTypeSchema as StrapiCollectionTypeSchema,
-  ComponentAttribute as StrapiComponentAttribute,
-  ComponentValue as StrapiComponentValue,
-  DynamicZoneAttribute as StrapiDynamicZoneAttribute,
-  DynamicZoneValue as StrapiDynamicZoneValue,
-  MediaAttribute as StrapiMediaAttribute,
-  MediaValue as StrapiMediaValue,
-  RelationAttribute as StrapiRelationAttribute,
-  RelationValue as StrapiRelationValue,
-} from '@strapi/strapi';
+  Component as StrapiComponentSchema,
+  SingleType as StrapiSingleTypeSchema,
+  CollectionType as StrapiCollectionTypeSchema,
+  Component as StrapiComponentValue,
+} from '@strapi/types/dist/types/core/schemas';
+
+import { DynamicZone as StrapiDynamicZoneAttribute } from '@strapi/types/dist/types/core/attributes/dynamic-zone';
+
+import { Media as StrapiMediaAttribute, MediaValue as StrapiMediaValue } from '@strapi/types/dist/types/core/attributes/media';
+import { Relation as StrapiRelationAttribute, RelationValue as StrapiRelationValue } from '@strapi/types/dist/types/core/attributes/relation';
+interface StrapiComponentAttribute extends AttributeType.Attribute {
+  type: 'component';
+  component: string;
+  repeatable?: boolean;
+}
+
+type DynamicZoneValue<TComponentsUID extends StrapiCommon.UID.Component[]> = Array<
+  Utils.Array.Values<TComponentsUID> extends infer TComponentUID
+    ? TComponentUID extends StrapiCommon.UID.Component
+      ? AttributeType.GetValues<TComponentUID> & {
+          __component: TComponentUID;
+        }
+      : never
+    : never
+>;
 
 export type {
   Attribute,
@@ -34,13 +49,13 @@ export type {
   User,
 };
 
-type SchemaUID = 'plugin::upload.file' | string;
+type SchemaUID = StrapiCommon.UID.ContentType;
 
 type User = any;
 
 type BaseAttribute = { name: string };
 type Attribute = ComponentAttribute | DynamicZoneAttribute | MediaAttribute | RelationAttribute;
-type ComponentAttribute = BaseAttribute & (StrapiComponentAttribute<any, true> | StrapiComponentAttribute<any, false>);
+type ComponentAttribute = BaseAttribute & (StrapiComponentAttribute | StrapiComponentAttribute);
 type DynamicZoneAttribute = BaseAttribute & StrapiDynamicZoneAttribute;
 type MediaAttribute = BaseAttribute & StrapiMediaAttribute<'audios' | 'files' | 'images' | 'videos'>;
 type RelationAttribute = BaseAttribute &
@@ -53,8 +68,8 @@ type RelationAttribute = BaseAttribute &
 
 // Media are not included in type because equals any atm.
 type Entry = ComponentEntry | DynamicZoneEntry | RelationEntry;
-type ComponentEntry = (WithI18n<StrapiComponentValue<any, true>> & EntryBase) | (WithI18n<StrapiComponentValue<any, false>> & EntryBase);
-type DynamicZoneEntry = WithI18n<UnwrapArray<StrapiDynamicZoneValue<[any]>>> & EntryBase;
+type ComponentEntry = (WithI18n<StrapiComponentValue> & EntryBase) | (WithI18n<StrapiComponentValue> & EntryBase);
+type DynamicZoneEntry = WithI18n<UnwrapArray<DynamicZoneValue<[any]>>> & EntryBase;
 type MediaEntry = StrapiMediaValue;
 type RelationEntry =
   | (WithI18n<StrapiRelationValue<'oneToOne', any>> & EntryBase)
